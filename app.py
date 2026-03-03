@@ -1,14 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 
-# 1. Page Configuration
-st.set_page_config(page_title="Insurance Cost Predictor", layout="centered")
-st.title("🩺 Medical Insurance Cost Predictor")
+# Set up page
+st.set_page_config(page_title="Insurance Insights", layout="wide")
+st.title("📊 Health Insurance Analysis & Prediction")
 
-# 2. Load and Prepare Data (Cached for performance)
+# Load and prepare data
 @st.cache_data
 def load_data():
     df = pd.read_csv('insurance.csv')
@@ -16,50 +18,40 @@ def load_data():
 
 df = load_data()
 
-# 3. Preprocessing (Training the model internally)
-# We need to replicate the encoding used in your notebook for the model to understand inputs
-le = LabelEncoder()
-df['region'] = le.fit_transform(df['region'])
-df['sex'] = le.fit_transform(df['sex'])
-df['smoker'] = le.fit_transform(df['smoker'])
+# Tabs
+tab1, tab2 = st.tabs(["📊 Exploratory Data Analysis", "🔮 Cost Predictor"])
 
-X = df.drop(['charges'], axis=1)
-y = df['charges']
-
-model = RandomForestRegressor(n_estimators=100, random_state=0)
-model.fit(X, y)
-
-# 4. User Input Interface
-st.sidebar.header("Patient Details")
-
-age = st.sidebar.number_input("Age", min_value=18, max_value=100, value=30)
-sex = st.sidebar.selectbox("Sex", ['male', 'female'])
-bmi = st.sidebar.number_input("BMI", min_value=10.0, max_value=50.0, value=25.0)
-children = st.sidebar.number_input("Number of Children", min_value=0, max_value=5, value=0)
-smoker = st.sidebar.selectbox("Smoker", ['yes', 'no'])
-region = st.sidebar.selectbox("Region", ['southeast', 'southwest', 'northeast', 'northwest'])
-
-# Mapping inputs to match the model's expected integer encoding
-# We need to ensure these mappings match how LabelEncoder transformed the data
-sex_map = {'male': 1, 'female': 0} # Adjust based on your specific LabelEncoder output
-smoker_map = {'yes': 1, 'no': 0}
-region_map = {'southeast': 2, 'southwest': 3, 'northeast': 0, 'northwest': 1}
-
-# 5. Prediction Logic
-if st.button("Predict Insurance Cost"):
-    input_data = np.array([[
-        age, 
-        sex_map[sex], 
-        bmi, 
-        children, 
-        smoker_map[smoker], 
-        region_map[region]
-    ]])
+with tab1:
+    st.header("Data Insights")
     
-    prediction = model.predict(input_data)
+    # Heatmap
+    st.subheader("Correlation Matrix")
+    # We create a temporary DF for correlation to handle encoding only for the plot
+    temp_df = df.copy()
+    le = LabelEncoder()
+    for col in ['sex', 'smoker', 'region']:
+        temp_df[col] = le.fit_transform(temp_df[col])
     
-    st.success(f"The estimated insurance cost is **${prediction[0]:,.2f}**")
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.heatmap(temp_df.corr(), annot=True, cmap='coolwarm', ax=ax)
+    st.pyplot(fig)
 
-# 6. Optional: Show Data Overview
-if st.checkbox("Show Raw Data"):
-    st.write(df.head())
+    # Row for sub-plots
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Smoker Distribution")
+        fig2, ax2 = plt.subplots()
+        df['smoker'].value_counts().plot.pie(autopct='%1.1f%%', ax=ax2, startangle=90)
+        st.pyplot(fig2)
+
+    with col2:
+        st.subheader("Charges by Region")
+        fig3, ax3 = plt.subplots()
+        sns.boxplot(x='region', y='charges', data=df, ax=ax3)
+        st.pyplot(fig3)
+
+with tab2:
+    st.header("Predict Your Insurance Cost")
+    # ... (Your existing input logic from the previous step)
+    # Ensure the inputs match your model encoding!
